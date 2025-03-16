@@ -1,0 +1,64 @@
+.rep-counter-container {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto 20px;
+  overflow: hidden;
+}
+
+.rep-counter-title {
+  text-align: center;
+  margin-bottom: 16px !important;
+}
+
+.rep-counter-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.rep-counter-controls {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rep-counter-settings {
+  margin-top: 24px;
+}
+
+.setting-item {
+  margin-bottom: 16px;
+}
+
+.setting-label {
+  margin-bottom: 8px;
+  display: block;
+}
+
+.slider-container {
+  margin-bottom: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rep-counter-stats {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .rep-counter-stats .ant-statistic {
+    margin-bottom: 16px;
+  }
+  
+  .rep-counter-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .rep-counter-controls .ant-btn {
+    margin-bottom: 8px;
+  }
+}

@@ -1,0 +1,188 @@
+.app-layout {
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  background: #001529;
+  padding: 0 24px;
+}
+
+.app-title {
+  color: white !important;
+  margin: 0 !important;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+  margin-right: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+}
+
+.app-content {
+  padding: 24px;
+}
+
+.app-container {
+  background: #fff;
+  padding: 24px;
+  min-height: 280px;
+  max-width: 1200px;
+  margin: 0 auto;
+  border-radius: 8px;
+}
+
+.app-tabs {
+  margin-bottom: 24px;
+}
+
+.tracker-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.camera-section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.camera-wrapper {
+  position: relative;
+  width: 640px;
+  height: 480px;
+}
+
+.instructions-card,
+.settings-card,
+.history-card,
+.about-card {
+  width: 100%;
+  max-width: 640px;
+  margin-top: 20px;
+}
+
+.app-footer {
+  text-align: center;
+  background: #f0f2f5;
+}
+
+.kettlebell-tracker-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.kettlebell-tracker-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.kettlebell-tracker-title {
+  color: #1890ff;
+  margin-bottom: 8px !important;
+}
+
+.kettlebell-tracker-subtitle {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.kettlebell-tracker-content {
+  background: #fff;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+  overflow: hidden;
+}
+
+.tracking-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.tracking-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  gap: 20px;
+}
+
+.tracking-col {
+  flex: 1;
+  min-width: 300px;
+  max-width: 640px;
+}
+
+.about-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.about-section {
+  margin-bottom: 24px;
+}
+
+.settings-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.settings-title {
+  margin-bottom: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .app-title {
+    font-size: 20px !important;
+  }
+  
+  .app-content {
+    padding: 16px;
+  }
+  
+  .app-container {
+    padding: 16px;
+  }
+  
+  .camera-wrapper {
+    width: 100%;
+    height: auto;
+  }
+}
+
+@media (max-width: 992px) {
+  .tracking-row {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .tracking-col {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 576px) {
+  .kettlebell-tracker-container {
+    padding: 10px;
+  }
+  
+  .kettlebell-tracker-content {
+    padding: 16px;
+  }
+}
