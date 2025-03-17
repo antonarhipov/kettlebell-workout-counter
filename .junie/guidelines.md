@@ -1,0 +1,1 @@
+The `docs` folder contains the design documents and the tasks.
