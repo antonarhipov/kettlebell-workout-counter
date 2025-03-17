@@ -102,25 +102,97 @@
   overflow: hidden;
 }
 
+.kettlebell-tracker-layout {
+  min-height: 100vh;
+}
+
 .tracking-container {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-}
-
-.tracking-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: row;
   width: 100%;
   gap: 20px;
+  margin-top: 20px;
 }
 
-.tracking-col {
+.main-content-area {
+  display: flex;
+  flex-direction: column;
+  flex: 3;
+}
+
+.video-pose-container {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.video-container {
   flex: 1;
-  min-width: 300px;
-  max-width: 640px;
+  min-width: 320px;
+  position: relative;
+}
+
+.pose-container {
+  flex: 1;
+  min-width: 320px;
+  position: relative;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.controls-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 280px;
+  max-width: 320px;
+}
+
+.rep-counter-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.rep-counter-title {
+  margin-bottom: 24px !important;
+  text-align: center;
+}
+
+.rep-counter-stats {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.rep-counter-statistic {
+  text-align: center;
+}
+
+.rep-counter-controls {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rep-counter-controls .ant-space {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.rep-counter-controls .ant-btn {
+  width: 100%;
+}
+
+.settings-container,
+.history-container,
+.about-container {
+  padding: 24px;
 }
 
 .about-container {
@@ -166,14 +238,25 @@
 }
 
 @media (max-width: 992px) {
-  .tracking-row {
+  .tracking-container {
     flex-direction: column;
-    align-items: center;
   }
   
-  .tracking-col {
-    width: 100%;
+  .controls-panel {
     max-width: 100%;
+  }
+  
+  .video-pose-container {
+    flex-direction: column;
+  }
+  
+  .rep-counter-controls .ant-space {
+    flex-direction: row;
+  }
+  
+  .rep-counter-stats {
+    flex-direction: row;
+    justify-content: space-around;
   }
 }
 

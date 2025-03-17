@@ -78,30 +78,39 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
             key="1"
           >
             <div className="tracking-container">
-              <div className="tracking-row">
-                <div className="tracking-col">
-                  <CameraComponent onVideoRef={handleVideoRef} />
-                  {videoReady && videoElementRef.current && (
-                    <PoseDetectionComponent
-                      videoRef={videoElementRef as MutableRefObject<HTMLVideoElement>}
-                      isActive={isActive}
-                      modelType={modelType}
-                      minConfidence={minConfidence}
-                      repThreshold={repThreshold}
-                      onPoseDetected={handlePoseDetected}
-                      onRepCountChange={handleRepCountChange}
-                    />
-                  )}
+              {/* Main content area with video and pose visualization */}
+              <div className="main-content-area">
+                <div className="video-pose-container">
+                  {/* Video container */}
+                  <div className="video-container">
+                    <CameraComponent onVideoRef={handleVideoRef} />
+                  </div>
+                  
+                  {/* Pose visualization container */}
+                  <div className="pose-container">
+                    {videoReady && videoElementRef.current && (
+                      <PoseDetectionComponent
+                        videoRef={videoElementRef as MutableRefObject<HTMLVideoElement>}
+                        isActive={isActive}
+                        modelType={modelType}
+                        minConfidence={minConfidence}
+                        repThreshold={repThreshold}
+                        onPoseDetected={handlePoseDetected}
+                        onRepCountChange={handleRepCountChange}
+                      />
+                    )}
+                  </div>
                 </div>
-                
-                <div className="tracking-col">
-                  <RepCounterComponent
-                    repCount={repCount}
-                    isActive={isActive}
-                    onToggleActive={handleToggleActive}
-                    onResetCounter={handleResetCounter}
-                  />
-                </div>
+              </div>
+              
+              {/* Controls panel on the right */}
+              <div className="controls-panel">
+                <RepCounterComponent
+                  repCount={repCount}
+                  isActive={isActive}
+                  onToggleActive={handleToggleActive}
+                  onResetCounter={handleResetCounter}
+                />
               </div>
             </div>
           </TabPane>

@@ -1,64 +1,73 @@
 .rep-counter-container {
   width: 100%;
-  max-width: 640px;
-  margin: 0 auto 20px;
-  overflow: hidden;
+  height: 100%;
+}
+
+.rep-counter-card {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .rep-counter-title {
   text-align: center;
-  margin-bottom: 16px !important;
+  margin-bottom: 24px !important;
 }
 
 .rep-counter-stats {
   display: flex;
-  justify-content: space-around;
+  flex-direction: column;
+  gap: 16px;
   margin-bottom: 24px;
-  flex-wrap: wrap;
+}
+
+.rep-counter-statistic {
+  text-align: center;
+}
+
+.rep-counter-statistic .ant-statistic-title {
+  font-size: 16px;
+  color: #666;
+}
+
+.rep-counter-statistic .ant-statistic-content-value {
+  font-size: 36px;
+  font-weight: bold;
+  color: #1890ff;
 }
 
 .rep-counter-controls {
+  margin-top: auto;
   display: flex;
-  justify-content: center;
-  margin-top: 16px;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.rep-counter-settings {
-  margin-top: 24px;
+.rep-counter-controls .ant-space {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
-.setting-item {
-  margin-bottom: 16px;
-}
-
-.setting-label {
-  margin-bottom: 8px;
-  display: block;
-}
-
-.slider-container {
-  margin-bottom: 16px;
+.rep-counter-controls .ant-btn {
+  width: 100%;
+  height: 48px;
+  font-size: 16px;
 }
 
 /* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .rep-counter-stats {
-    flex-direction: column;
-    align-items: center;
+    flex-direction: row;
+    justify-content: space-around;
   }
   
-  .rep-counter-stats .ant-statistic {
-    margin-bottom: 16px;
-  }
-  
-  .rep-counter-controls {
-    flex-direction: column;
-    align-items: center;
+  .rep-counter-controls .ant-space {
+    flex-direction: row;
   }
   
   .rep-counter-controls .ant-btn {
-    margin-bottom: 8px;
+    flex: 1;
   }
 }
