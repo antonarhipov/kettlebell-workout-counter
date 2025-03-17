@@ -5,11 +5,11 @@ import { FormAnalysisResult } from '../../utils/formAnalysis';
 import FormFeedbackComponent from '../FormFeedback/FormFeedbackComponent';
 import { Spin, message } from 'antd';
 import { 
-  initializePoseDetectionWorker, 
+  initializePoseDetection, 
   detectPoses, 
-  disposePoseDetectionWorker,
-  isPoseDetectionWorkerInitialized
-} from '../../services/poseDetectionWorkerService';
+  disposePoseDetection,
+  isPoseDetectionInitialized
+} from '../../services/poseDetectionService';
 import './PoseDetectionComponent.css';
 
 interface PoseDetectionComponentProps {
@@ -46,7 +46,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
   const requestRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentPose, setCurrentPose] = useState<Pose | null>(null);
-  const [workerInitialized, setWorkerInitialized] = useState<boolean>(false);
+  const [detectionInitialized, setDetectionInitialized] = useState<boolean>(false);
   // Performance metrics
   const [fps, setFps] = useState<number>(0);
   const fpsCountRef = useRef<number>(0);
@@ -55,26 +55,26 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
   const [formAnalysis, setFormAnalysis] = useState<FormAnalysisResult | null>(null);
   const [currentPhase, setCurrentPhase] = useState<JerkPhase>(JerkPhase.UNKNOWN);
 
-  // Initialize pose detection worker
+  // Initialize pose detection
   useEffect(() => {
-    const init = () => {
+    const init = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Check if worker is already initialized
-        if (isPoseDetectionWorkerInitialized()) {
-          setWorkerInitialized(true);
+        // Check if detection is already initialized
+        if (isPoseDetectionInitialized()) {
+          setDetectionInitialized(true);
           setLoading(false);
           return;
         }
 
-        // Initialize the worker
-        console.log(`Initializing pose detection worker with ${modelType} model...`);
-        initializePoseDetectionWorker(
+        // Initialize pose detection
+        console.log(`Initializing pose detection with ${modelType} model...`);
+        await initializePoseDetection(
           modelType,
           (success) => {
-            setWorkerInitialized(success);
+            setDetectionInitialized(success);
             setLoading(false);
             if (success) {
               message.success('Pose detection initialized successfully');
@@ -102,7 +102,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
 
     return () => {
       // Clean up
-      disposePoseDetectionWorker();
+      disposePoseDetection();
     };
   }, [modelType]);
 
@@ -193,7 +193,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
 
   // Run pose detection loop
   useEffect(() => {
-    if (!isActive || loading || error || !workerInitialized || !videoRef || !videoRef.current) {
+    if (!isActive || loading || error || !detectionInitialized || !videoRef || !videoRef.current) {
       return;
     }
 
@@ -210,7 +210,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
     }
 
     // Detect poses
-    const runDetection = () => {
+    const runDetection = async () => {
       try {
         if (!videoElement) return;
 
@@ -220,8 +220,8 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
           return;
         }
 
-        // Detect poses using the worker
-        detectPoses(
+        // Detect poses directly in the main thread
+        await detectPoses(
           videoElement,
           {
             minConfidence,
@@ -241,22 +241,10 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
 
             // Draw pose
             drawPose(pose);
-
-            // Update FPS counter
-            updateFPS();
-
-            // Continue detection loop
-            requestRef.current = requestAnimationFrame(runDetection);
           },
           () => {
             // Handle no poses detected
             console.log('No poses detected');
-
-            // Update FPS counter
-            updateFPS();
-
-            // Continue detection loop
-            requestRef.current = requestAnimationFrame(runDetection);
           },
           (errorMsg) => {
             // Handle error
@@ -264,9 +252,18 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
             message.error('Error in pose detection');
           }
         );
+
+        // Update FPS counter
+        updateFPS();
+
+        // Continue detection loop
+        requestRef.current = requestAnimationFrame(runDetection);
       } catch (err) {
         console.error('Error in pose detection loop:', err);
         message.error('Error in pose detection');
+
+        // Continue detection loop even after error
+        requestRef.current = requestAnimationFrame(runDetection);
       }
     };
 
@@ -284,7 +281,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
     isActive, 
     loading, 
     error, 
-    workerInitialized,
+    detectionInitialized,
     videoRef, 
     onPoseDetected, 
     onRepCountChange, 
@@ -334,8 +331,8 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
 
           <div className="performance-metrics">
             <span className="fps-counter">{fps} FPS</span>
-            <span className="worker-status">
-              Worker: {workerInitialized ? 'Active' : 'Inactive'}
+            <span className="detection-status">
+              Detection: {detectionInitialized ? 'Active' : 'Inactive'}
             </span>
           </div>
         </>

@@ -17,24 +17,24 @@ export const smoothKeypoints = (
   smoothingFactor: number = 0.5
 ): Pose => {
   if (!previousPoses.length) return currentPose;
-  
+
   const smoothedKeypoints = currentPose.keypoints.map(keypoint => {
     const prevKeypoints = previousPoses
       .map(pose => pose.keypoints.find(kp => kp.name === keypoint.name))
       .filter(kp => kp !== undefined) as KeyPoint[];
-    
+
     if (!prevKeypoints.length) return keypoint;
-    
+
     const avgX = prevKeypoints.reduce((sum, kp) => sum + kp.x, 0) / prevKeypoints.length;
     const avgY = prevKeypoints.reduce((sum, kp) => sum + kp.y, 0) / prevKeypoints.length;
-    
+
     return {
       ...keypoint,
       x: keypoint.x * (1 - smoothingFactor) + avgX * smoothingFactor,
       y: keypoint.y * (1 - smoothingFactor) + avgY * smoothingFactor
     };
   });
-  
+
   return {
     ...currentPose,
     keypoints: smoothedKeypoints
@@ -63,13 +63,13 @@ export const smoothKeypoints = (
 // Example implementation for form feedback
 const analyzeForm = (pose: Pose, phase: JerkPhase): FormFeedback[] => {
   const feedback: FormFeedback[] = [];
-  
+
   if (phase === JerkPhase.RACK) {
     // Check elbow position
     const leftElbow = getKeypoint(pose, 'left_elbow');
     const leftShoulder = getKeypoint(pose, 'left_shoulder');
     const leftHip = getKeypoint(pose, 'left_hip');
-    
+
     if (leftElbow && leftShoulder && leftHip) {
       if (leftElbow.x < leftShoulder.x) {
         feedback.push({
@@ -79,12 +79,12 @@ const analyzeForm = (pose: Pose, phase: JerkPhase): FormFeedback[] => {
         });
       }
     }
-    
+
     // Add more checks for rack position
   }
-  
+
   // Add checks for other phases
-  
+
   return feedback;
 };
 ```
@@ -133,33 +133,39 @@ const analyzeForm = (pose: Pose, phase: JerkPhase): FormFeedback[] => {
 ## 4. Technical Improvements
 
 ### 4.1 Performance Optimization
-- **Web Workers**: Move pose detection to a Web Worker to prevent UI blocking.
+- **Optimized Main Thread Processing**: Perform pose detection directly in the main thread with optimized rendering to prevent flickering. While Web Workers were initially considered for preventing UI blocking, testing revealed they caused significant flickering in the visualization due to the asynchronous nature of worker communication.
 - **Memory management**: Implement better memory management for long workout sessions.
 - **Lazy loading**: Implement lazy loading of models and components.
+- **Frame Rate Optimization**: Implement frame skipping or throttling when necessary to maintain consistent visualization.
 
 ```typescript
-// Example Web Worker implementation
-// In main thread
-const poseDetectionWorker = new Worker('poseDetectionWorker.js');
+// Example optimized main thread implementation
+const detectAndRenderPose = async () => {
+  if (!detector || !videoElement) return;
 
-poseDetectionWorker.onmessage = (event) => {
-  const { pose, repCount } = event.data;
-  updateUI(pose, repCount);
-};
+  // Detect pose
+  const poses = await detector.estimatePoses(videoElement);
 
-// Send video frame to worker
-const sendFrameToWorker = () => {
-  const canvas = document.createElement('canvas');
-  canvas.width = video.width;
-  canvas.height = video.height;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0);
-  const imageData = canvas.toDataURL('image/jpeg', 0.8);
-  
-  poseDetectionWorker.postMessage({
-    type: 'processFrame',
-    imageData
-  });
+  if (poses.length > 0) {
+    const pose = poses[0];
+
+    // Apply smoothing if enabled
+    const smoothedPose = smoothingEnabled 
+      ? smoothPose(pose, previousPoses, smoothingFactor) 
+      : pose;
+
+    // Update pose history
+    previousPoses.push(smoothedPose);
+    if (previousPoses.length > poseBufferSize) {
+      previousPoses.shift();
+    }
+
+    // Process pose (count reps, analyze form, etc.)
+    processAndRenderPose(smoothedPose);
+  }
+
+  // Continue detection loop
+  requestAnimationFrame(detectAndRenderPose);
 };
 ```
 
@@ -196,7 +202,7 @@ const sendFrameToWorker = () => {
 1. Keypoint filtering and smoothing for improved detection stability
 2. Real-time form correction feedback
 3. Complete the settings panel with essential controls
-4. Implement Web Workers for better performance
+4. Optimize main thread pose detection for smooth visualization
 
 ### Medium Priority (Significant Enhancements)
 1. Exercise statistics and workout summary
