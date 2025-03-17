@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as poseDetection from '@tensorflow-models/pose-detection';
 import * as tf from '@tensorflow/tfjs';
 import { Pose } from '../../types';
-import { initializeTF, createDetector } from '../../utils/poseDetection';
-import { processJerkMovement } from '../../utils/jerkFSM';
+import { initializeTF, createDetector, smoothPose } from '../../utils/poseDetection';
+import { processJerkMovement, getJerkFSMState, JerkPhase } from '../../utils/jerkFSM';
+import { analyzeForm, FormAnalysisResult } from '../../utils/formAnalysis';
+import FormFeedbackComponent from '../FormFeedback/FormFeedbackComponent';
 import { Spin, message } from 'antd';
 import './PoseDetectionComponent.css';
 
@@ -15,6 +17,11 @@ interface PoseDetectionComponentProps {
   repThreshold: number;
   onPoseDetected: (pose: Pose | null) => void;
   onRepCountChange: (count: number) => void;
+  // Optional smoothing parameters
+  smoothingEnabled?: boolean;
+  smoothingFactor?: number;
+  useConfidenceWeighting?: boolean;
+  poseBufferSize?: number;
 }
 
 const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
@@ -25,6 +32,11 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
   repThreshold,
   onPoseDetected,
   onRepCountChange,
+  // Default values for smoothing parameters
+  smoothingEnabled = true,
+  smoothingFactor = 0.5,
+  useConfidenceWeighting = true,
+  poseBufferSize = 5
 }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +45,11 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentPose, setCurrentPose] = useState<Pose | null>(null);
   const [tfInitialized, setTfInitialized] = useState<boolean>(false);
+  // Buffer for storing previous poses for smoothing
+  const [previousPoses, setPreviousPoses] = useState<Pose[]>([]);
+  // Form analysis state
+  const [formAnalysis, setFormAnalysis] = useState<FormAnalysisResult | null>(null);
+  const [currentPhase, setCurrentPhase] = useState<JerkPhase>(JerkPhase.UNKNOWN);
 
   // Initialize TensorFlow.js and pose detector
   useEffect(() => {
@@ -40,17 +57,17 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
       try {
         setLoading(true);
         setError(null);
-        
+
         // Initialize TensorFlow.js
         console.log('Starting TensorFlow.js initialization...');
         await initializeTF();
         setTfInitialized(true);
-        
+
         // Create the detector
         console.log(`Creating ${modelType} detector...`);
         const detector = await createDetector(modelType);
         detectorRef.current = detector;
-        
+
         setLoading(false);
         message.success('Pose detection initialized successfully');
       } catch (err) {
@@ -60,9 +77,9 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
         message.error('Failed to initialize pose detection');
       }
     };
-    
+
     init();
-    
+
     return () => {
       // Clean up
       if (detectorRef.current) {
@@ -75,13 +92,13 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
   // Draw pose keypoints and connections on canvas
   const drawPose = useCallback((pose: Pose | null) => {
     if (!canvasRef.current || !pose) return;
-    
+
     const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
-    
+
     // Clear canvas
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    
+
     // Draw keypoints
     pose.keypoints.forEach(keypoint => {
       if (keypoint.score && keypoint.score > minConfidence) {
@@ -89,7 +106,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
         ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
         ctx.fillStyle = 'aqua';
         ctx.fill();
-        
+
         // Draw keypoint name
         if (keypoint.name) {
           ctx.fillStyle = 'white';
@@ -98,7 +115,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
         }
       }
     });
-    
+
     // Draw connections between keypoints (stick figure)
     const connections = [
       ['nose', 'left_eye'], ['nose', 'right_eye'],
@@ -112,11 +129,11 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
       ['left_hip', 'left_knee'], ['right_hip', 'right_knee'],
       ['left_knee', 'left_ankle'], ['right_knee', 'right_ankle']
     ];
-    
+
     connections.forEach(([from, to]) => {
       const fromKeypoint = pose.keypoints.find(kp => kp.name === from);
       const toKeypoint = pose.keypoints.find(kp => kp.name === to);
-      
+
       if (fromKeypoint && toKeypoint && 
           fromKeypoint.score && toKeypoint.score && 
           fromKeypoint.score > minConfidence && toKeypoint.score > minConfidence) {
@@ -166,12 +183,31 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
 
         // Detect poses
         const poses = await detectorRef.current.estimatePoses(videoElement);
-        
+
         if (poses && poses.length > 0) {
-          const pose = poses[0] as Pose;
+          let pose = poses[0] as Pose;
+
+          // Apply smoothing if enabled
+          if (smoothingEnabled && previousPoses.length > 0) {
+            pose = smoothPose(
+              pose,
+              previousPoses,
+              smoothingFactor,
+              useConfidenceWeighting,
+              minConfidence
+            );
+          }
+
+          // Update previous poses buffer
+          setPreviousPoses(prevPoses => {
+            const newPoses = [...prevPoses, pose];
+            // Keep only the most recent poses based on buffer size
+            return newPoses.slice(-poseBufferSize);
+          });
+
           setCurrentPose(pose);
           onPoseDetected(pose);
-          
+
           // Process movement with FSM and count reps
           const repCount = processJerkMovement(pose, {
             minConfidence,
@@ -181,15 +217,23 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
             lockoutAngleThreshold: 160,
             minRepDuration: 500
           });
-          
+
           onRepCountChange(repCount);
-          
+
+          // Get current phase from FSM
+          const fsmState = getJerkFSMState();
+          setCurrentPhase(fsmState.currentPhase);
+
+          // Analyze form based on current phase
+          const analysis = analyzeForm(pose, fsmState.currentPhase, minConfidence);
+          setFormAnalysis(analysis);
+
           // Draw pose
           drawPose(pose);
         } else {
           console.log('No poses detected');
         }
-        
+
         // Continue detection loop
         requestRef.current = requestAnimationFrame(detectPoses);
       } catch (err) {
@@ -197,10 +241,10 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
         message.error('Error in pose detection');
       }
     };
-    
+
     // Start detection loop
     requestRef.current = requestAnimationFrame(detectPoses);
-    
+
     // Clean up
     return () => {
       if (requestRef.current) {
@@ -208,7 +252,21 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
         requestRef.current = null;
       }
     };
-  }, [isActive, loading, error, videoRef, onPoseDetected, onRepCountChange, minConfidence, repThreshold, drawPose]);
+  }, [
+    isActive, 
+    loading, 
+    error, 
+    videoRef, 
+    onPoseDetected, 
+    onRepCountChange, 
+    minConfidence, 
+    repThreshold, 
+    drawPose,
+    smoothingEnabled,
+    smoothingFactor,
+    useConfidenceWeighting,
+    poseBufferSize
+  ]);
 
   return (
     <div className="pose-detection-container">
@@ -217,7 +275,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
           <Spin tip="Initializing pose detection..." />
         </div>
       )}
-      
+
       {error && (
         <div className="error-container">
           <p className="error-message">{error}</p>
@@ -229,11 +287,20 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
           </button>
         </div>
       )}
-      
+
       <canvas 
         ref={canvasRef}
         className="pose-canvas"
       />
+
+      {isActive && (
+        <div className="form-feedback-wrapper">
+          <FormFeedbackComponent 
+            formAnalysis={formAnalysis}
+            currentPhase={currentPhase}
+          />
+        </div>
+      )}
     </div>
   );
 };

@@ -1,0 +1,43 @@
+.form-feedback-container {
+  padding: 16px;
+  background-color: #f8f8f8;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.form-score-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0;
+}
+
+.current-phase-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.current-phase-container .ant-tag {
+  margin-left: 8px;
+}
+
+.form-issues-container {
+  margin-top: 16px;
+}
+
+.issue-alert-content {
+  display: flex;
+  align-items: center;
+}
+
+.issue-alert-content .ant-tag {
+  margin-right: 8px;
+  min-width: 70px;
+  text-align: center;
+}
+
+.no-issues-container {
+  margin-top: 16px;
+}

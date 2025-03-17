@@ -73,3 +73,19 @@
 .retry-button:hover {
   background-color: #40a9ff;
 }
+
+.form-feedback-wrapper {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 300px;
+  max-width: 30%;
+  z-index: 5;
+  pointer-events: auto;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.form-feedback-wrapper:hover {
+  opacity: 1;
+}
