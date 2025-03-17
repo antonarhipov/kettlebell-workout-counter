@@ -120,15 +120,24 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
     pose.keypoints.forEach(keypoint => {
       if (keypoint.score && keypoint.score > minConfidence) {
         ctx.beginPath();
-        ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
-        ctx.fillStyle = 'aqua';
+        ctx.arc(keypoint.x, keypoint.y, 7, 0, 2 * Math.PI);
+        ctx.fillStyle = '#f43ae3';
         ctx.fill();
+        ctx.strokeStyle = '#b50ae4';
+        ctx.lineWidth = 4;
+        ctx.stroke();
 
         // Draw keypoint name
         if (keypoint.name) {
+          // Add text background for better visibility
+          const textWidth = ctx.measureText(keypoint.name).width;
+          ctx.fillStyle = 'rgb(83,181,2)';
+          ctx.fillRect(keypoint.x + 8, keypoint.y - 12, textWidth + 4, 16);
+
+          // Draw text with larger font
           ctx.fillStyle = 'white';
-          ctx.font = '12px Arial';
-          ctx.fillText(keypoint.name, keypoint.x + 8, keypoint.y);
+          ctx.font = 'bold 14px Arial';
+          ctx.fillText(keypoint.name, keypoint.x + 10, keypoint.y);
         }
       }
     });
@@ -157,8 +166,8 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
         ctx.beginPath();
         ctx.moveTo(fromKeypoint.x, fromKeypoint.y);
         ctx.lineTo(toKeypoint.x, toKeypoint.y);
-        ctx.strokeStyle = 'lime';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#1374e4';
+        ctx.lineWidth = 4;
         ctx.stroke();
       }
     });
