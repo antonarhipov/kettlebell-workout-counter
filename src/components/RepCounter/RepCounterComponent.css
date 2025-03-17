@@ -56,6 +56,38 @@
   font-size: 16px;
 }
 
+.movement-phase-info {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.phase-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.phase-tag {
+  font-size: 16px;
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.valid-rep-indicator {
+  margin-top: 8px;
+}
+
+.valid-rep-indicator .ant-tag {
+  font-size: 14px;
+  padding: 2px 8px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 992px) {
   .rep-counter-stats {
@@ -69,5 +101,18 @@
   
   .rep-counter-controls .ant-btn {
     flex: 1;
+  }
+}
+
+@media (min-width: 768px) {
+  .rep-counter-stats {
+    flex-direction: row;
+    justify-content: space-around;
+    flex-wrap: wrap;
+  }
+  
+  .movement-phase-info {
+    width: 100%;
+    margin-top: 16px;
   }
 }

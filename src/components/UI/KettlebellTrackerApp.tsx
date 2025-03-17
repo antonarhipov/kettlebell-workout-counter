@@ -5,7 +5,7 @@ import CameraComponent from '../Camera/CameraComponent';
 import PoseDetectionComponent from '../PoseDetection/PoseDetectionComponent';
 import RepCounterComponent from '../RepCounter/RepCounterComponent';
 import { Pose } from '../../types';
-import { resetCounter } from '../../utils/repCounter';
+import { resetJerkFSM } from '../../utils/jerkFSM';
 import './KettlebellTrackerApp.css';
 
 const { Header, Content, Footer } = Layout;
@@ -44,7 +44,7 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
 
   // Reset repetition counter
   const handleResetCounter = () => {
-    resetCounter();
+    resetJerkFSM();
     setRepCount(0);
   };
 
@@ -162,6 +162,15 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
                 This application uses computer vision to track kettlebell jerk exercises.
                 It counts repetitions automatically by analyzing your movements through your webcam.
               </p>
+              <p>
+                <strong>Kettlebell Jerk Movement Phases:</strong>
+              </p>
+              <ol>
+                <li><strong>Rack Position:</strong> Kettlebells at shoulder height, elbows close to body</li>
+                <li><strong>Dip Phase:</strong> Slight bend in knees, preparing for explosive movement</li>
+                <li><strong>Drive Phase:</strong> Rapid extension of legs and arms</li>
+                <li><strong>Lockout:</strong> Arms fully extended overhead, shoulders elevated</li>
+              </ol>
               <p>
                 <strong>Privacy Note:</strong> All processing happens locally in your browser.
                 No video data is uploaded to any server.

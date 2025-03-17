@@ -3,7 +3,7 @@ import * as poseDetection from '@tensorflow-models/pose-detection';
 import * as tf from '@tensorflow/tfjs';
 import { Pose } from '../../types';
 import { initializeTF, createDetector } from '../../utils/poseDetection';
-import { analyzeJerkMovement } from '../../utils/repCounter';
+import { processJerkMovement } from '../../utils/jerkFSM';
 import { Spin, message } from 'antd';
 import './PoseDetectionComponent.css';
 
@@ -87,27 +87,30 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
       if (keypoint.score && keypoint.score > minConfidence) {
         ctx.beginPath();
         ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = 'aqua';
         ctx.fill();
+        
+        // Draw keypoint name
+        if (keypoint.name) {
+          ctx.fillStyle = 'white';
+          ctx.font = '12px Arial';
+          ctx.fillText(keypoint.name, keypoint.x + 8, keypoint.y);
+        }
       }
     });
     
-    // Draw connections between keypoints (simplified)
+    // Draw connections between keypoints (stick figure)
     const connections = [
-      ['nose', 'left_shoulder'],
-      ['nose', 'right_shoulder'],
-      ['left_shoulder', 'left_elbow'],
-      ['left_elbow', 'left_wrist'],
-      ['right_shoulder', 'right_elbow'],
-      ['right_elbow', 'right_wrist'],
+      ['nose', 'left_eye'], ['nose', 'right_eye'],
+      ['left_eye', 'left_ear'], ['right_eye', 'right_ear'],
+      ['nose', 'left_shoulder'], ['nose', 'right_shoulder'],
+      ['left_shoulder', 'left_elbow'], ['right_shoulder', 'right_elbow'],
+      ['left_elbow', 'left_wrist'], ['right_elbow', 'right_wrist'],
       ['left_shoulder', 'right_shoulder'],
-      ['left_shoulder', 'left_hip'],
-      ['right_shoulder', 'right_hip'],
+      ['left_shoulder', 'left_hip'], ['right_shoulder', 'right_hip'],
       ['left_hip', 'right_hip'],
-      ['left_hip', 'left_knee'],
-      ['left_knee', 'left_ankle'],
-      ['right_hip', 'right_knee'],
-      ['right_knee', 'right_ankle']
+      ['left_hip', 'left_knee'], ['right_hip', 'right_knee'],
+      ['left_knee', 'left_ankle'], ['right_knee', 'right_ankle']
     ];
     
     connections.forEach(([from, to]) => {
@@ -120,7 +123,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
         ctx.beginPath();
         ctx.moveTo(fromKeypoint.x, fromKeypoint.y);
         ctx.lineTo(toKeypoint.x, toKeypoint.y);
-        ctx.strokeStyle = 'blue';
+        ctx.strokeStyle = 'lime';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -146,8 +149,8 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
 
     // Set canvas dimensions to match video
     if (canvasRef.current) {
-      canvasRef.current.width = videoElement.clientWidth;
-      canvasRef.current.height = videoElement.clientHeight;
+      canvasRef.current.width = videoElement.videoWidth || videoElement.clientWidth;
+      canvasRef.current.height = videoElement.videoHeight || videoElement.clientHeight;
     }
 
     // Detect poses
@@ -169,8 +172,16 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
           setCurrentPose(pose);
           onPoseDetected(pose);
           
-          // Analyze movement and count reps
-          const repCount = analyzeJerkMovement(pose, { minConfidence, repThreshold });
+          // Process movement with FSM and count reps
+          const repCount = processJerkMovement(pose, {
+            minConfidence,
+            rackHeightThreshold: 0.1,
+            dipDepthThreshold: 15,
+            lockoutHeightThreshold: repThreshold,
+            lockoutAngleThreshold: 160,
+            minRepDuration: 500
+          });
+          
           onRepCountChange(repCount);
           
           // Draw pose
