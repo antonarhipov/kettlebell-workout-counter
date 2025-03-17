@@ -1,11 +1,13 @@
-import React, { useState, useRef, MutableRefObject } from 'react';
+import React, { useState, useRef, MutableRefObject, useEffect } from 'react';
 import { Layout, Typography, Tabs } from 'antd';
 import { InfoCircleOutlined, SettingOutlined, HistoryOutlined, CameraOutlined } from '@ant-design/icons';
 import CameraComponent from '../Camera/CameraComponent';
 import PoseDetectionComponent from '../PoseDetection/PoseDetectionComponent';
 import RepCounterComponent from '../RepCounter/RepCounterComponent';
-import { Pose } from '../../types';
+import SettingsComponent from '../Settings/SettingsComponent';
+import { Pose, UserSettings } from '../../types';
 import { resetJerkFSM } from '../../utils/jerkFSM';
+import { loadSettings, saveSettings } from '../../services/settingsService';
 import './KettlebellTrackerApp.css';
 
 const { Header, Content, Footer } = Layout;
@@ -22,10 +24,30 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
   const [isActive, setIsActive] = useState<boolean>(false);
   const [repCount, setRepCount] = useState<number>(0);
   const [currentPose, setCurrentPose] = useState<Pose | null>(null);
-  const [minConfidence, setMinConfidence] = useState<number>(0.5);
-  const [repThreshold, setRepThreshold] = useState<number>(50);
-  const [modelType, setModelType] = useState<'movenet' | 'posenet'>('movenet');
   const [videoReady, setVideoReady] = useState<boolean>(false);
+
+  // Settings state
+  const [settings, setSettings] = useState<UserSettings>(() => loadSettings());
+  const [minConfidence, setMinConfidence] = useState<number>(settings.minConfidence);
+  const [repThreshold, setRepThreshold] = useState<number>(settings.repThreshold);
+  const [modelType, setModelType] = useState<'movenet' | 'posenet'>(settings.detectionModel);
+  const [smoothingEnabled, setSmoothingEnabled] = useState<boolean>(settings.smoothingEnabled || false);
+  const [smoothingFactor, setSmoothingFactor] = useState<number>(settings.smoothingFactor || 0.5);
+  const [useConfidenceWeighting, setUseConfidenceWeighting] = useState<boolean>(settings.useConfidenceWeighting || true);
+  const [poseBufferSize, setPoseBufferSize] = useState<number>(settings.poseBufferSize || 5);
+
+  // Load settings on component mount
+  useEffect(() => {
+    const loadedSettings = loadSettings();
+    setSettings(loadedSettings);
+    setMinConfidence(loadedSettings.minConfidence);
+    setRepThreshold(loadedSettings.repThreshold);
+    setModelType(loadedSettings.detectionModel);
+    setSmoothingEnabled(loadedSettings.smoothingEnabled || false);
+    setSmoothingFactor(loadedSettings.smoothingFactor || 0.5);
+    setUseConfidenceWeighting(loadedSettings.useConfidenceWeighting || true);
+    setPoseBufferSize(loadedSettings.poseBufferSize || 5);
+  }, []);
 
   // Handle video reference from camera component
   const handleVideoRef = (element: HTMLVideoElement | null) => {
@@ -58,6 +80,21 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
     setRepCount(count);
   };
 
+  // Handle settings change
+  const handleSettingsChange = (newSettings: UserSettings) => {
+    setSettings(newSettings);
+    setMinConfidence(newSettings.minConfidence);
+    setRepThreshold(newSettings.repThreshold);
+    setModelType(newSettings.detectionModel);
+    setSmoothingEnabled(newSettings.smoothingEnabled || false);
+    setSmoothingFactor(newSettings.smoothingFactor || 0.5);
+    setUseConfidenceWeighting(newSettings.useConfidenceWeighting || true);
+    setPoseBufferSize(newSettings.poseBufferSize || 5);
+
+    // Save settings to localStorage
+    saveSettings(newSettings);
+  };
+
   return (
     <Layout className="kettlebell-tracker-layout">
       <Header className="app-header">
@@ -65,7 +102,7 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
           <Title level={3} className="app-title">Kettlebell Jerk Tracker</Title>
         </div>
       </Header>
-      
+
       <Content className="app-content">
         <Tabs defaultActiveKey="1" className="main-tabs">
           <TabPane 
@@ -85,7 +122,7 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
                   <div className="video-container">
                     <CameraComponent onVideoRef={handleVideoRef} />
                   </div>
-                  
+
                   {/* Pose visualization container */}
                   <div className="pose-container">
                     {videoReady && videoElementRef.current && (
@@ -97,12 +134,16 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
                         repThreshold={repThreshold}
                         onPoseDetected={handlePoseDetected}
                         onRepCountChange={handleRepCountChange}
+                        smoothingEnabled={smoothingEnabled}
+                        smoothingFactor={smoothingFactor}
+                        useConfidenceWeighting={useConfidenceWeighting}
+                        poseBufferSize={poseBufferSize}
                       />
                     )}
                   </div>
                 </div>
               </div>
-              
+
               {/* Controls panel on the right */}
               <div className="controls-panel">
                 <RepCounterComponent
@@ -114,7 +155,7 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
               </div>
             </div>
           </TabPane>
-          
+
           <TabPane 
             tab={
               <span>
@@ -125,12 +166,13 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
             key="2"
           >
             <div className="settings-container">
-              <h2>Settings</h2>
-              <p>Configure your tracking settings here.</p>
-              {/* Settings components will go here */}
+              <SettingsComponent 
+                settings={settings}
+                onSettingsChange={handleSettingsChange}
+              />
             </div>
           </TabPane>
-          
+
           <TabPane 
             tab={
               <span>
@@ -146,7 +188,7 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
               {/* History components will go here */}
             </div>
           </TabPane>
-          
+
           <TabPane 
             tab={
               <span>
@@ -179,7 +221,7 @@ const KettlebellTrackerApp: React.FC<KettlebellTrackerAppProps> = () => {
           </TabPane>
         </Tabs>
       </Content>
-      
+
       <Footer style={{ textAlign: 'center' }}>
         Kettlebell Jerk Counter &copy; {new Date().getFullYear()} Created with React and TensorFlow.js
       </Footer>

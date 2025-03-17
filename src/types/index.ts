@@ -31,4 +31,8 @@ export interface UserSettings {
   detectionModel: 'movenet' | 'posenet';
   minConfidence: number;
   repThreshold: number;
+  smoothingEnabled: boolean;
+  smoothingFactor: number;
+  useConfidenceWeighting: boolean;
+  poseBufferSize: number;
 }

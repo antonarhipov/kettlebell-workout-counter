@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import * as poseDetection from '@tensorflow-models/pose-detection';
-import * as tf from '@tensorflow/tfjs';
 import { Pose } from '../../types';
-import { initializeTF, createDetector, smoothPose } from '../../utils/poseDetection';
-import { processJerkMovement, getJerkFSMState, JerkPhase } from '../../utils/jerkFSM';
-import { analyzeForm, FormAnalysisResult } from '../../utils/formAnalysis';
+import { JerkPhase } from '../../utils/jerkFSM';
+import { FormAnalysisResult } from '../../utils/formAnalysis';
 import FormFeedbackComponent from '../FormFeedback/FormFeedbackComponent';
 import { Spin, message } from 'antd';
+import { 
+  initializePoseDetectionWorker, 
+  detectPoses, 
+  disposePoseDetectionWorker,
+  isPoseDetectionWorkerInitialized
+} from '../../services/poseDetectionWorkerService';
 import './PoseDetectionComponent.css';
 
 interface PoseDetectionComponentProps {
@@ -40,36 +43,53 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
 }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const detectorRef = useRef<poseDetection.PoseDetector | null>(null);
   const requestRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentPose, setCurrentPose] = useState<Pose | null>(null);
-  const [tfInitialized, setTfInitialized] = useState<boolean>(false);
-  // Buffer for storing previous poses for smoothing
-  const [previousPoses, setPreviousPoses] = useState<Pose[]>([]);
+  const [workerInitialized, setWorkerInitialized] = useState<boolean>(false);
+  // Performance metrics
+  const [fps, setFps] = useState<number>(0);
+  const fpsCountRef = useRef<number>(0);
+  const lastFpsUpdateRef = useRef<number>(Date.now());
   // Form analysis state
   const [formAnalysis, setFormAnalysis] = useState<FormAnalysisResult | null>(null);
   const [currentPhase, setCurrentPhase] = useState<JerkPhase>(JerkPhase.UNKNOWN);
 
-  // Initialize TensorFlow.js and pose detector
+  // Initialize pose detection worker
   useEffect(() => {
-    const init = async () => {
+    const init = () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Initialize TensorFlow.js
-        console.log('Starting TensorFlow.js initialization...');
-        await initializeTF();
-        setTfInitialized(true);
+        // Check if worker is already initialized
+        if (isPoseDetectionWorkerInitialized()) {
+          setWorkerInitialized(true);
+          setLoading(false);
+          return;
+        }
 
-        // Create the detector
-        console.log(`Creating ${modelType} detector...`);
-        const detector = await createDetector(modelType);
-        detectorRef.current = detector;
-
-        setLoading(false);
-        message.success('Pose detection initialized successfully');
+        // Initialize the worker
+        console.log(`Initializing pose detection worker with ${modelType} model...`);
+        initializePoseDetectionWorker(
+          modelType,
+          (success) => {
+            setWorkerInitialized(success);
+            setLoading(false);
+            if (success) {
+              message.success('Pose detection initialized successfully');
+            } else {
+              setError('Failed to initialize pose detection. Please try refreshing the page.');
+              message.error('Failed to initialize pose detection');
+            }
+          },
+          (errorMsg) => {
+            console.error('Error initializing pose detection:', errorMsg);
+            setError(`Failed to initialize pose detection: ${errorMsg}`);
+            setLoading(false);
+            message.error('Failed to initialize pose detection');
+          }
+        );
       } catch (err) {
         console.error('Error initializing pose detection:', err);
         setError('Failed to initialize pose detection. Please try refreshing the page.');
@@ -82,10 +102,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
 
     return () => {
       // Clean up
-      if (detectorRef.current) {
-        detectorRef.current.dispose();
-        detectorRef.current = null;
-      }
+      disposePoseDetectionWorker();
     };
   }, [modelType]);
 
@@ -152,9 +169,22 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
     drawPose(currentPose);
   }, [currentPose, drawPose]);
 
+  // Update FPS counter
+  const updateFPS = useCallback(() => {
+    fpsCountRef.current++;
+    const now = Date.now();
+    const elapsed = now - lastFpsUpdateRef.current;
+
+    if (elapsed >= 1000) { // Update FPS every second
+      setFps(Math.round((fpsCountRef.current * 1000) / elapsed));
+      fpsCountRef.current = 0;
+      lastFpsUpdateRef.current = now;
+    }
+  }, []);
+
   // Run pose detection loop
   useEffect(() => {
-    if (!isActive || loading || error || !detectorRef.current || !videoRef || !videoRef.current) {
+    if (!isActive || loading || error || !workerInitialized || !videoRef || !videoRef.current) {
       return;
     }
 
@@ -171,71 +201,60 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
     }
 
     // Detect poses
-    const detectPoses = async () => {
+    const runDetection = () => {
       try {
-        if (!detectorRef.current || !videoElement) return;
+        if (!videoElement) return;
 
         // Ensure video is ready
         if (videoElement.readyState < 2) {
-          requestRef.current = requestAnimationFrame(detectPoses);
+          requestRef.current = requestAnimationFrame(runDetection);
           return;
         }
 
-        // Detect poses
-        const poses = await detectorRef.current.estimatePoses(videoElement);
-
-        if (poses && poses.length > 0) {
-          let pose = poses[0] as Pose;
-
-          // Apply smoothing if enabled
-          if (smoothingEnabled && previousPoses.length > 0) {
-            pose = smoothPose(
-              pose,
-              previousPoses,
-              smoothingFactor,
-              useConfidenceWeighting,
-              minConfidence
-            );
-          }
-
-          // Update previous poses buffer
-          setPreviousPoses(prevPoses => {
-            const newPoses = [...prevPoses, pose];
-            // Keep only the most recent poses based on buffer size
-            return newPoses.slice(-poseBufferSize);
-          });
-
-          setCurrentPose(pose);
-          onPoseDetected(pose);
-
-          // Process movement with FSM and count reps
-          const repCount = processJerkMovement(pose, {
+        // Detect poses using the worker
+        detectPoses(
+          videoElement,
+          {
             minConfidence,
-            rackHeightThreshold: 0.1,
-            dipDepthThreshold: 15,
-            lockoutHeightThreshold: repThreshold,
-            lockoutAngleThreshold: 160,
-            minRepDuration: 500
-          });
+            repThreshold,
+            smoothingEnabled,
+            smoothingFactor,
+            useConfidenceWeighting,
+            poseBufferSize
+          },
+          (pose, repCount, phase, analysis) => {
+            // Handle pose detection result
+            setCurrentPose(pose);
+            onPoseDetected(pose);
+            onRepCountChange(repCount);
+            setCurrentPhase(phase);
+            setFormAnalysis(analysis);
 
-          onRepCountChange(repCount);
+            // Draw pose
+            drawPose(pose);
 
-          // Get current phase from FSM
-          const fsmState = getJerkFSMState();
-          setCurrentPhase(fsmState.currentPhase);
+            // Update FPS counter
+            updateFPS();
 
-          // Analyze form based on current phase
-          const analysis = analyzeForm(pose, fsmState.currentPhase, minConfidence);
-          setFormAnalysis(analysis);
+            // Continue detection loop
+            requestRef.current = requestAnimationFrame(runDetection);
+          },
+          () => {
+            // Handle no poses detected
+            console.log('No poses detected');
 
-          // Draw pose
-          drawPose(pose);
-        } else {
-          console.log('No poses detected');
-        }
+            // Update FPS counter
+            updateFPS();
 
-        // Continue detection loop
-        requestRef.current = requestAnimationFrame(detectPoses);
+            // Continue detection loop
+            requestRef.current = requestAnimationFrame(runDetection);
+          },
+          (errorMsg) => {
+            // Handle error
+            console.error('Error in pose detection:', errorMsg);
+            message.error('Error in pose detection');
+          }
+        );
       } catch (err) {
         console.error('Error in pose detection loop:', err);
         message.error('Error in pose detection');
@@ -243,7 +262,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
     };
 
     // Start detection loop
-    requestRef.current = requestAnimationFrame(detectPoses);
+    requestRef.current = requestAnimationFrame(runDetection);
 
     // Clean up
     return () => {
@@ -256,6 +275,7 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
     isActive, 
     loading, 
     error, 
+    workerInitialized,
     videoRef, 
     onPoseDetected, 
     onRepCountChange, 
@@ -265,7 +285,8 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
     smoothingEnabled,
     smoothingFactor,
     useConfidenceWeighting,
-    poseBufferSize
+    poseBufferSize,
+    updateFPS
   ]);
 
   return (
@@ -294,12 +315,21 @@ const PoseDetectionComponent: React.FC<PoseDetectionComponentProps> = ({
       />
 
       {isActive && (
-        <div className="form-feedback-wrapper">
-          <FormFeedbackComponent 
-            formAnalysis={formAnalysis}
-            currentPhase={currentPhase}
-          />
-        </div>
+        <>
+          <div className="form-feedback-wrapper">
+            <FormFeedbackComponent 
+              formAnalysis={formAnalysis}
+              currentPhase={currentPhase}
+            />
+          </div>
+
+          <div className="performance-metrics">
+            <span className="fps-counter">{fps} FPS</span>
+            <span className="worker-status">
+              Worker: {workerInitialized ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        </>
       )}
     </div>
   );

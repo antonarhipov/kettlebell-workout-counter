@@ -89,3 +89,35 @@
 .form-feedback-wrapper:hover {
   opacity: 1;
 }
+
+.performance-metrics {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 5;
+  pointer-events: auto;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.performance-metrics:hover {
+  opacity: 1;
+}
+
+.fps-counter {
+  font-weight: bold;
+  color: #52c41a;
+}
+
+.worker-status {
+  font-size: 12px;
+  color: #1890ff;
+}
